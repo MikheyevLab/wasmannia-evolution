@@ -1,0 +1,34 @@
+---
+title: "Wasmannia auropunctata evolution"
+author: "Sasha Mikheyev and Claire Morandin"
+date: "10/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(echo = TRUE, cache = T)
+```
+
+## Gene expression
+
+### ERCC
+
+We added an [ERCC92](https://www.thermofisher.com/order/catalog/product/4456740) spike in to a subset of the libraries as a technical control
+
+```{r}
+fmt <- function() function(x) as.character(round(x,3))
+read_tsv("data/ercc_fpkm.txt", col_types = cols()) %>% gather(library, fpkm, -c(REF,ID)) %>% ggplot(aes(REF, fpkm, color=library)) + geom_point() + stat_smooth(method="lm", se=F) + scale_y_log10() + scale_x_log10() + ylab(expression(paste(log[10]," FPKM"))) + xlab(expression(paste(log[10]," spike-in concentration")))
+```
+
+### Differential gene expression
+
+```{r}
+libTypes <- read_csv("data/rnaCodes.csv", col_types = "ccccc") # library types
+counts <- read_csv("data/rsem.csv", col_types = cols()) %>% select(-fpkm) %>% filter(grepl("^LOC", gene_id)) %>% spread(library, count) # read data and re-format it with genes as rows, libraries as columns
+```
+
+### WGCNA
+```{r}
+fpkm <- read_csv("data/rsem.csv", col_types = cols()) %>% select(-count) %>% filter(grepl("^LOC", gene_id)) %>% spread(gene_id, fpkm)  # read data and re-format it with libraries as rows and genes as columns
+``` 
