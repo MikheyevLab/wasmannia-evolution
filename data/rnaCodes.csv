@@ -1,0 +1,34 @@
+library,Colony code,Reproductive system,Caste,Location
+1d3Q,1.3Q,Sexual,Q,French Guiana
+1d3W,1.3W,Sexual,W,French Guiana
+1d4Q,1.4Q,Sexual,Q,French Guiana
+1d4W,1.4W,Sexual,W,French Guiana
+3d4Q,3.4Q,Sexual,Q,French Guiana
+3d4W,3.4W,Sexual,W,French Guiana
+7Q,7Q,Clonal,Q,French Guiana
+7W,7W,Clonal,W,French Guiana
+24d1Q,24.1Q,Clonal,Q,French Guiana
+24d1W,24.1W,Clonal,W,French Guiana
+24d3Q,24.3Q,Clonal,Q,French Guiana
+24d3W,24.3W,Clonal,W,French Guiana
+28d1bQ,28.1BQ,Sexual,Q,French Guiana
+28d1bW,28.1BW,Sexual,W,French Guiana
+3d6Q,3.6Q,Sexual,Q,French Guiana
+3d6W,3.6W,Sexual,W,French Guiana
+3d7Q,3.7Q,Clonal,Q,French Guiana
+3d7W,3.7W,Clonal,W,French Guiana
+3d8Q,3.8Q,Clonal,Q,French Guiana
+3d8W,3.8W,Clonal,W,French Guiana
+4d2Q,4.2Q,Sexual,Q,French Guiana
+4d2W,4.2W,Sexual,W,French Guiana
+5d1Q,5.1Q,Clonal,Q,French Guiana
+5d1W,5.1W,Clonal,W,French Guiana
+b_scf,Hawaii_brood,Clonal,"mixed, mainly worker",Hawaii
+m1_scf,Hawaii_male1,Clonal,M,Hawaii
+m2_scf,Hawaii_male2,Clonal,M,Hawaii
+q1_scf,Hawaii_queen1,Clonal,Q,Hawaii
+q2_scf,Hawaii_queen2,Clonal,Q,Hawaii
+q3_scf,Hawaii_queen3,Clonal,Q,Hawaii
+w1_scf,Hawaii_worker1,Clonal,W,Hawaii
+w2_scf,Hawaii_worker2,Clonal,W,Hawaii
+w3_scf,Hawaii_worker3,Clonal,W,Hawaii
