@@ -2,33 +2,95 @@
 title: "Wasmannia auropunctata evolution"
 author: "Sasha Mikheyev and Claire Morandin"
 date: "10/19/2018"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+    theme: cerulean
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(edgeR)
+library(PopGenome)
+require(scales) # trans_format and math_format for axis plots
+library(kableExtra) # kable styling
 knitr::opts_chunk$set(echo = TRUE, cache = T)
 ```
 
-## Gene expression
+# Gene expression
 
-### ERCC
+## ERCC
 
-We added an [ERCC92](https://www.thermofisher.com/order/catalog/product/4456740) spike in to a subset of the libraries as a technical control
+We added an [ERCC92](https://www.thermofisher.com/order/catalog/product/4456740) spike in to a subset of the libraries as a technical control. The reference concentration is in attomoles/ul, and we used 50ng of total with 1 uL of
 
-```{r}
+```{r ercc}
 fmt <- function() function(x) as.character(round(x,3))
-read_tsv("data/ercc_fpkm.txt", col_types = cols()) %>% gather(library, fpkm, -c(REF,ID)) %>% ggplot(aes(REF, fpkm, color=library)) + geom_point() + stat_smooth(method="lm", se=F) + scale_y_log10() + scale_x_log10() + ylab(expression(paste(log[10]," FPKM"))) + xlab(expression(paste(log[10]," spike-in concentration")))
+ercc <- read_tsv("data/ercc_fpkm.txt", col_types = cols()) %>% gather(library, fpkm, -c(REF,ID)) 
+ggplot(ercc, aes(REF, fpkm, color=library)) + geom_point() + stat_smooth(method="lm", se=F) + scale_y_log10(labels=scales::trans_format('log10', scales::math_format(10^.x))) + scale_x_log10(labels=scales::trans_format('log10', scales::math_format(10^.x))) + ylab(expression(paste(log[10]," FPKM"))) + xlab(expression(paste(log[10]," spike-in concentration")))
+
+ercc.lm <- lm(log2(fpkm) ~ log2(REF) + factor(library), data = subset(ercc, fpkm > 0))
+summary(ercc.lm)
 ```
 
-### Differential gene expression
+## Differential gene expression
 
-```{r}
+```{r edgeR}
 libTypes <- read_csv("data/rnaCodes.csv", col_types = "ccccc") # library types
-counts <- read_csv("data/rsem.csv", col_types = cols()) %>% select(-fpkm) %>% filter(grepl("^LOC", gene_id)) %>% spread(library, count) # read data and re-format it with genes as rows, libraries as columns
+# read data and re-format it with genes as rows, libraries as columns
+# average hawaii bio-technical replicates
+counts <- read_csv("data/rsem.csv", col_types = cols()) %>% select(-fpkm) %>% filter(grepl("^LOC", gene_id)) %>% spread(library, count) %>% 
+  mutate(q_h = (q1 + q2 + q3)/3, w_h = (w1 + w2 + w3)/3) %>% select(gene_id, `1d3Q`,`1d3W`,`1d4Q`,`1d4W`,`28d1bQ`,`28d1bW`,`3d4Q`,`3d4W`,`3d6Q`,`3d6W`,`4d2Q`,`4d2W`,`7Q`,`7W`,`24d1Q`,`24d1W`,`24d3Q`,`24d3W`,`3d7Q`,`3d7W`,`3d8Q`,`3d8W`,`5d1Q`,`5d1W`,`q_h`,`w_h`)
+#filtering by cpm, with at leas one cpm in half the libraries
+keep <- rowSums(cpm(counts[,-1]) > 1) > (ncol(counts[,-1]))/2
+table(keep)
+caste <- factor(rep(c("q","w"),13))
+pop <- factor(c(1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13))
+sex <- c(rep("sexual",6*2),rep("clonal",7*2))
+
+design <- model.matrix(~0+sex:caste)
+rownames(design) <- colnames(counts[,-1])
+dge <- DGEList(counts=round(counts[keep,-1]),group=sex)   #apply filtering!
+dge <- calcNormFactors(dge)
+dge <- estimateGLMCommonDisp(dge, design)
+dge <- estimateGLMTrendedDisp(dge, design)
+dge <- estimateGLMTagwiseDisp(dge, design)
+fit <- glmFit(dge, design)
+lrt_reproduction_queens <- glmLRT(fit,contrast=c(-1,1,0,0))  #dge in sex vs clonal queens
+lrt_reproduction_queens$table$gene_id <- counts[keep,1]
+lrt_reproduction_queens_et <- decideTestsDGE(lrt_reproduction_queens,p=0.05,adjust="BH")
+kable(summary(lrt_reproduction_queens_et)[,1])
+lrt_reproduction_workers<- glmLRT(fit,contrast=c(0,0,-1,1)) #dge in sex vs clonal workers
+lrt_reproduction_workers_et <- decideTestsDGE(lrt_reproduction_workers,p=0.05,adjust="BH")
+kable(summary(lrt_reproduction_workers_et)[,1])
+lrt_caste<- glmLRT(fit,contrast=c(-1,-1,1,1)) #dge on queens vs workers
+lrt_caste_et <- decideTestsDGE(lrt_caste,p=0.05,adjust="BH")
+kable(summary(lrt_caste_et)[,1])
 ```
 
-### WGCNA
+### Smear plot of differential gene expression
+
+The castes have much differntial gene expression, followed by sexual _vs._ clonal queens, with barely any differences between the sexual and clonal workers
+```{r smearPlor, echo = F}
+bind_rows(tibble(logFC = lrt_reproduction_queens$table$logFC, cpm =  lrt_reproduction_queens$table$logCPM, sig = ifelse(lrt_reproduction_queens_et[,1] == 0, "black", "red"), contrast = "sexual vs. clonal queens"), 
+      tibble(logFC = lrt_reproduction_workers$table$logFC, cpm = lrt_reproduction_workers$table$logCPM, sig = ifelse(lrt_reproduction_workers_et[,1] == 0, "black", "red"), contrast = "sexual vs. clonal workers"),
+      tibble(logFC = lrt_caste$table$logFC, cpm = lrt_caste$table$logCPM, sig = ifelse(lrt_caste_et[,1] == 0, "black", "red"), contrast = "queens vs. workers")) %>% ggplot(aes(cpm, logFC, color = sig, alpha = .3)) + geom_point() + scale_color_manual(values = c("black", "red")) + facet_grid(.~contrast) + theme_bw() +guides(color = F, alpha = F) + xlab(expression(paste(log[2]," counts per million reads"))) + xlab(expression(paste(log[2]," fold-count"))) + theme(strip.background = element_blank()) +  geom_text(data = data.frame(cpm = 13.5, logFC = c(-25,20), sig = 'black', contrast = "queens vs. workers"), label = c("↑ queens","↑ workers"), alpha = 1, color = "dodgerblue", , fontface = "bold") + geom_text(data = data.frame(cpm = 13.5, logFC = c(-25,20), sig = "black" , contrast = "sexual vs. clonal queens"), label = c("↑ sexual","↑ clonal"), alpha = 1, color = "dodgerblue", fontface = "bold")+ geom_text(data = data.frame(cpm = 13.5, logFC = c(-25,20), sig = "black" , contrast = "sexual vs. clonal workers"), label = c("↑  sexual","↑  clonal"), alpha = 1, color = "dodgerblue", fontface = "bold")  
+ggsave("figures/smearplot.png", width = 6, height = 4)
+```
+
+## GO term enrichment
+
+TODO
+
+## WGCNA
 ```{r}
 fpkm <- read_csv("data/rsem.csv", col_types = cols()) %>% select(-count) %>% filter(grepl("^LOC", gene_id)) %>% spread(gene_id, fpkm)  # read data and re-format it with libraries as rows and genes as columns
 ``` 
+
+# McDonald-Kreitman selection analysis
+
+```{r mktest}
+
+```
+
